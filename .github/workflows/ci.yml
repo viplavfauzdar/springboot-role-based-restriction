@@ -146,7 +146,7 @@ jobs:
 
       - name: Set up Snyk
         if: ${{ env.SNYK_TOKEN != '' }}
-        uses: snyk/actions/setup@4
+        uses: snyk/actions/node@master
 
       - name: Snyk Open Source (Gradle) test
         if: ${{ env.SNYK_TOKEN != '' }}
