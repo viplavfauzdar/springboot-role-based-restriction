@@ -79,6 +79,9 @@ jobs:
     name: Docker Build, Trivy & Scout
     runs-on: ubuntu-latest
     needs: build-and-test
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SNYK_ORG: ${{ vars.SNYK_ORG }}
 
     steps:
       - name: Checkout code
@@ -140,6 +143,32 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+
+      - name: Set up Snyk
+        if: ${{ env.SNYK_TOKEN != '' }}
+        uses: snyk/actions/setup@v4
+
+      - name: Snyk Open Source (Gradle) test
+        if: ${{ env.SNYK_TOKEN != '' }}
+        run: |
+          snyk test --all-projects --exclude=test --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-os.sarif || true
+
+      - name: Snyk Container test (image)
+        if: ${{ env.SNYK_TOKEN != '' }}
+        run: |
+          snyk container test demo-app:latest --file=Dockerfile --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-container.sarif || true
+
+      - name: Upload Snyk SARIF (Open Source)
+        if: ${{ env.SNYK_TOKEN != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-os.sarif
+
+      - name: Upload Snyk SARIF (Container)
+        if: ${{ env.SNYK_TOKEN != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-container.sarif
 
   sonarqube-scan:
     name: SonarCloud Scan
