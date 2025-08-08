@@ -21,6 +21,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Compute application version
+        id: appver
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "version=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.1.0-${GITHUB_RUN_NUMBER}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+          echo "Computed version=${{ steps.appver.outputs.version }}"
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -101,25 +111,28 @@ jobs:
       - name: Build Boot JAR
         run: |
           if [ -x ./gradlew ]; then
-            ./gradlew clean bootJar
+            ./gradlew clean bootJar -PappVersion=${{ steps.appver.outputs.version }}
           else
-            gradle clean bootJar
+            gradle clean bootJar -PappVersion=${{ steps.appver.outputs.version }}
           fi
 
       - name: Verify Boot JAR exists
         run: |
           echo "Listing build/libs contents:" && ls -l build/libs || true
-          JAR_COUNT=$(ls build/libs/*-SNAPSHOT.jar 2>/dev/null | wc -l | tr -d ' ')
+          JAR_COUNT=$(ls build/libs/*.jar 2>/dev/null | wc -l | tr -d ' ')
           if [ "$JAR_COUNT" -eq 0 ]; then
             echo "ERROR: No Boot JAR found in build/libs. Did the build succeed?" >&2
             exit 1
           fi
+          echo "Boot JARs:" && ls -1 build/libs/*.jar
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        run: docker build -t demo-app:latest .
+        run: |
+          VERSION=${{ steps.appver.outputs.version }}
+          docker build -t demo-app:"$VERSION" -t demo-app:latest --build-arg APP_VERSION="$VERSION" .
 
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.20.0
@@ -139,7 +152,8 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (for Snyk)
+        id: jdk_for_snyk
         uses: actions/setup-java@v4
         with:
           java-version: 21
@@ -164,16 +178,16 @@ jobs:
         run: |
           snyk test --all-projects --exclude=test --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-os.sarif || true
         env:
-          JAVA_HOME: ${{ env.JAVA_HOME }}
-          PATH: ${{ env.JAVA_HOME }}/bin:${{ env.PATH }}
+          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
+          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
 
       - name: Snyk Container test (image)
         if: ${{ env.SNYK_TOKEN != '' }}
         run: |
           snyk container test demo-app:latest --file=Dockerfile --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-container.sarif || true
         env:
-          JAVA_HOME: ${{ env.JAVA_HOME }}
-          PATH: ${{ env.JAVA_HOME }}/bin:${{ env.PATH }}
+          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
+          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
 
       - name: Upload Snyk SARIF (Open Source)
         if: ${{ env.SNYK_TOKEN != '' }}

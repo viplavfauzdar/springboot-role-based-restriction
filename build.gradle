@@ -6,7 +6,18 @@ plugins {
 }
 
 group = 'com.example'
-version = '0.0.1-SNAPSHOT'
+version = (findProperty("appVersion") ?: System.getenv("APP_VERSION")) ?: "0.1.0-SNAPSHOT"
+
+springBoot {
+    buildInfo {
+        properties {
+            version = project.version
+        }
+    }
+}
+
+// Ensure build-info is packaged into the Boot jar
+tasks.named("bootJar") { dependsOn(tasks.named("bootBuildInfo")) }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
