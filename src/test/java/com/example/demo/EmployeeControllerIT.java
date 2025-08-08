@@ -9,6 +9,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -31,6 +33,7 @@ public class EmployeeControllerIT {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void shouldReturnEmployeeList() throws Exception {
         mockMvc.perform(get("/api/employees"))
                .andExpect(status().isOk())
@@ -39,9 +42,10 @@ public class EmployeeControllerIT {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void shouldCreateNewEmployee() throws Exception {
         String json = "{\"name\":\"Jane Doe\",\"role\":\"Tester\"}";
-                mockMvc.perform(post("/api/employees")
+        mockMvc.perform(post("/api/employees").with(csrf())
                .contentType(MediaType.APPLICATION_JSON)
                .content(json))
                .andExpect(status().isOk())
