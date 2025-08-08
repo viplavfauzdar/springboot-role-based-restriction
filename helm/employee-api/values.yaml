@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: your-dockerhub-username/employee-api
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+
+env:
+  SPRING_PROFILES_ACTIVE: prod
+
+resources: {}

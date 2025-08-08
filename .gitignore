@@ -1,0 +1,59 @@
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.ear
+*.iml
+
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+
+# IntelliJ IDEA / Eclipse / VS Code
+.idea/
+*.iws
+*.ipr
+*.iml
+*.class
+*.sw?
+.project
+.settings/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.orig
+
+# Logs
+logs/
+*.log
+hs_err_pid*
+
+# Kubernetes / Helm
+helm/charts/
+helm/tmp/
+*.tgz
+
+# Environment & credentials
+.env
+.env.*
+*.key
+*.pem
+secrets.*
+
+# Postman collections (optional)
+postman/collections/*.backup
+
+# Node (if applicable in frontend submodule)
+node_modules/
+dist/
+
+# Others
+out/
+bin/
+tmp/
