@@ -19,16 +19,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
 
-      - name: Build and run tests using system Gradle
-        run: gradle clean build
+      - name: Build and run tests
+        run: |
+          if [ -x ./gradlew ]; then
+            ./gradlew clean build
+          else
+            gradle clean build
+          fi
 
   codeql-scan:
     name: Static Code Analysis (CodeQL)
@@ -37,18 +42,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: java
 
       - name: Build with CodeQL autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
 
   gitleaks:
     name: Secret Scanning (Gitleaks)
@@ -57,7 +62,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
@@ -71,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -80,7 +85,7 @@ jobs:
         run: docker build -t demo-app:latest .
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@v0.9.2
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: demo-app:latest
           format: table
@@ -96,6 +101,6 @@ jobs:
           summary: true
 
       - name: Upload Scout SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: scout-results.sarif
