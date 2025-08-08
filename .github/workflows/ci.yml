@@ -135,7 +135,7 @@ jobs:
           docker build -t demo-app:"$VERSION" -t demo-app:latest --build-arg APP_VERSION="$VERSION" .
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: demo-app:latest
           format: table
@@ -143,7 +143,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Trivy SARIF (image)
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: demo-app:latest
           format: sarif
