@@ -17,6 +17,11 @@ repositories {
 }
 
 dependencies {
+    constraints {
+        implementation('org.apache.commons:commons-lang3:3.18.0') {
+            because 'Fix CVE-2025-48924 (Uncontrolled recursion) flagged by Trivy on 3.17.0; fixed in 3.18.0'
+        }
+    }
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
