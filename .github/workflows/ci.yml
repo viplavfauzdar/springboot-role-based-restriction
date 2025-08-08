@@ -78,6 +78,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Build Boot JAR
+        run: |
+          if [ -x ./gradlew ]; then
+            ./gradlew clean bootJar
+          else
+            gradle clean bootJar
+          fi
+
+      - name: Verify Boot JAR exists
+        run: |
+          echo "Listing build/libs contents:" && ls -l build/libs || true
+          JAR_COUNT=$(ls build/libs/*-SNAPSHOT.jar 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$JAR_COUNT" -eq 0 ]; then
+            echo "ERROR: No Boot JAR found in build/libs. Did the build succeed?" >&2
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

@@ -1,6 +1,20 @@
+# Maven (not used here but harmless)
 .mvn/
 target/
 !.mvn/wrapper/maven-wrapper.jar
+
+# Gradle: ignore build output except the boot jar(s)
+build/*
+!build/libs/
+!build/libs/*.jar
+
+# IDE files
 .idea/
 *.iml
+
+# Logs
 *.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
