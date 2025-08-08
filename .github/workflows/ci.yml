@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # For CodeQL
+  security-events: write
   actions: read
   id-token: write
 
@@ -27,21 +27,8 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle
-
-      - name: Grant execute to gradlew
-        run: chmod +x ./gradlew
-
-      - name: Build and run tests
-        run: ./gradlew clean build
+      - name: Build and run tests using system Gradle
+        run: gradle clean build
 
   codeql-scan:
     name: Static Code Analysis (CodeQL)
@@ -49,12 +36,16 @@ jobs:
     needs: build-and-test
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
           languages: java
+
+      - name: Build with CodeQL autobuild
+        uses: github/codeql-action/autobuild@v2
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
@@ -84,9 +75,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker (if pushing later)
-        run: echo "Skipping login - add secrets if needed"
 
       - name: Build Docker image
         run: docker build -t demo-app:latest .
