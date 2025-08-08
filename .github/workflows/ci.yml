@@ -139,15 +139,6 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-
-      - name: Set up Snyk
-        if: ${{ env.SNYK_TOKEN != '' }}
-        uses: snyk/actions/node@master
-      
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -158,6 +149,15 @@ jobs:
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
           ./gradlew -v
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Set up Snyk
+        if: ${{ env.SNYK_TOKEN != '' }}
+        uses: snyk/actions/node@master
 
       - name: Snyk Open Source (Gradle) test
         if: ${{ env.SNYK_TOKEN != '' }}
