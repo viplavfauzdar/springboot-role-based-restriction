@@ -97,13 +97,24 @@ jobs:
     needs: build-and-test
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (full history for diff tools)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Run Gitleaks
+      - name: Ensure unshallow & tags
+        run: |
+          if git rev-parse --is-shallow-repository; then
+            git fetch --prune --unshallow --tags
+          else
+            git fetch --prune --tags
+          fi
+
+      - name: Run Gitleaks (full repo scan)
         uses: gitleaks/gitleaks-action@v2
         with:
           fail: true
+          args: detect --redact --exit-code=1 --report-format=sarif --report-path=results.sarif
 
   docker-build-and-scan:
     name: Docker Build, Trivy & Scout
