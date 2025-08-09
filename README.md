@@ -99,3 +99,18 @@ helm install employee-api ./helm/employee-api
 
 ### Swagger UI
 Visit [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+
+
+## 🔖 Release & Tagging
+We use SemVer tags to drive the build and image version in CI.
+
+### Cut a new release
+```bash
+VER=1.2.3
+git tag -a "v${VER}" -m "Release v${VER}"
+git push origin "v${VER}"
+```
+
+Pushing a tag triggers the workflow to:
+- Build the app with version `${VER}` (also visible at `/actuator/info`).
+- Build a Docker image tagged `demo-app:${VER}` and `demo-app:latest` with OCI labels.
