@@ -29,11 +29,12 @@ jobs:
         id: appver
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            echo "version=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+            VERSION="$GITHUB_REF_NAME"
           else
-            echo "version=0.1.0-${GITHUB_RUN_NUMBER}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            VERSION="0.1.0-${GITHUB_RUN_NUMBER}-$(git rev-parse --short HEAD)"
           fi
-          echo "Computed version=${{ steps.appver.outputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version=$VERSION"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -44,9 +45,9 @@ jobs:
       - name: Build and run tests
         run: |
           if [ -x ./gradlew ]; then
-            ./gradlew clean build
+            ./gradlew clean build -PappVersion=${{ steps.appver.outputs.version }}
           else
-            gradle clean build
+            gradle clean build -PappVersion=${{ steps.appver.outputs.version }}
           fi
 
   codeql-scan:

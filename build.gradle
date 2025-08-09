@@ -7,6 +7,7 @@ plugins {
 
 group = 'com.example'
 version = (findProperty("appVersion") ?: System.getenv("APP_VERSION")) ?: "0.1.0-SNAPSHOT"
+println "Building application version: ${version}"
 
 springBoot {
     buildInfo {
