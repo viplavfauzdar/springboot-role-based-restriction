@@ -208,29 +208,43 @@ jobs:
           java -version
 
       - name: Snyk Open Source (Gradle) test
+        id: snyk_os
         if: ${{ env.SNYK_TOKEN != '' }}
         env:
           JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
           PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
         run: |
+          set -euo pipefail
           snyk test --all-projects --exclude=test --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-os.sarif || true
+          if [ -f snyk-os.sarif ]; then
+            echo "sarif_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sarif_exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Snyk Container test (image)
+        id: snyk_container
         if: ${{ env.SNYK_TOKEN != '' }}
         env:
           JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
           PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
         run: |
+          set -euo pipefail
           snyk container test demo-app:latest --file=Dockerfile --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-container.sarif || true
+          if [ -f snyk-container.sarif ]; then
+            echo "sarif_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sarif_exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload Snyk SARIF (Open Source)
-        if: ${{ env.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' && steps.snyk_os.outputs.sarif_exists == 'true' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-os.sarif
 
       - name: Upload Snyk SARIF (Container)
-        if: ${{ env.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' && steps.snyk_container.outputs.sarif_exists == 'true' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-container.sarif
