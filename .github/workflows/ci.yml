@@ -15,6 +15,19 @@ permissions:
   id-token: write
 
 jobs:
+  release-please:
+    name: Release Please (semantic versioning)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create releases/tags
+      pull-requests: write  # open/update release PRs
+    steps:
+      - name: Run Release Please
+        uses: google-github-actions/release-please-action@v4
+        with:
+          release-type: simple
+          package-name: springboot-role-based-restriction
+          token: ${{ secrets.GITHUB_TOKEN }}
   build-and-test:
     name: Build & Test with Gradle
     runs-on: ubuntu-latest

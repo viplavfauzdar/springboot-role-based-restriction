@@ -101,16 +101,30 @@ helm install employee-api ./helm/employee-api
 Visit [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
 
-## 🔖 Release & Tagging
-We use SemVer tags to drive the build and image version in CI.
+## 🔖 Releases (Conventional Commits → Auto Tags)
+We use Conventional Commits and GitHub's **Release Please** to automate versioning and releases.
 
-### Cut a new release
+### How it works
+- Push/merge commits to `main` using Conventional Commit prefixes (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, etc.).
+- The workflow opens/updates a **release PR** summarizing changes and proposing the next SemVer bump:
+  - `fix:` → **patch**
+  - `feat:` → **minor**
+  - `BREAKING CHANGE:` (in body) → **major**
+- When you **merge the release PR**, it automatically **creates a Git tag** `vX.Y.Z` and a GitHub release.
+- Our CI builds the app and Docker image using that tag version and bakes it into `/actuator/info` and OCI labels.
+
+### Commit examples
+```
+feat: add role-based filter to /users endpoint
+fix: null pointer when JWT is missing
+refactor(auth): simplify filter chain
+```
+
+### Manual fallback (optional)
+If you need to cut a release without the PR flow:
 ```bash
 VER=1.2.3
 git tag -a "v${VER}" -m "Release v${VER}"
 git push origin "v${VER}"
 ```
-
-Pushing a tag triggers the workflow to:
-- Build the app with version `${VER}` (also visible at `/actuator/info`).
-- Build a Docker image tagged `demo-app:${VER}` and `demo-app:latest` with OCI labels.
+This also triggers CI with the exact `1.2.3` baked into the build.
