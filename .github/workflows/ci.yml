@@ -21,6 +21,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Compute application version
+        id: appver
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "version=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.1.0-${GITHUB_RUN_NUMBER}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+          echo "Computed version=${{ steps.appver.outputs.version }}"
+
 
       - name: Compute application version
         id: appver
@@ -142,8 +152,12 @@ jobs:
 
       - name: Build Docker image
         run: |
-          VERSION=${{ steps.appver.outputs.version }}
-          docker build -t demo-app:"$VERSION" -t demo-app:latest --build-arg APP_VERSION="$VERSION" .
+          VERSION="${{ steps.appver.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="0.1.0-${GITHUB_RUN_NUMBER}-$(git rev-parse --short HEAD)"
+          fi
+          echo "Building image with tag: $VERSION"
+          docker build -t demo-app:${VERSION} -t demo-app:latest --build-arg APP_VERSION=${VERSION} .
 
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.20.0
