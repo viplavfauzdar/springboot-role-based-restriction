@@ -102,13 +102,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ensure unshallow & tags
-        run: |
-          if git rev-parse --is-shallow-repository; then
-            git fetch --prune --unshallow --tags
-          else
-            git fetch --prune --tags
-          fi
+      - name: Fetch tags
+        run: git fetch --prune --tags
 
       - name: Run Gitleaks (full repo scan)
         uses: gitleaks/gitleaks-action@v2
@@ -193,10 +188,6 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-      - name: Set up Snyk
-        if: ${{ env.SNYK_TOKEN != '' }}
-        uses: snyk/actions/node@master
-
       - name: Set up JDK 21 (for Snyk)
         id: jdk_for_snyk
         uses: actions/setup-java@v4
@@ -206,8 +197,12 @@ jobs:
 
       - run: |
           java -version
-          echo "JAVA_HOME=$JAVA_HOME"
+          echo "Starting Synk. JAVA_HOME=$JAVA_HOME"
           ./gradlew -v
+
+      - name: Set up Snyk
+        if: ${{ env.SNYK_TOKEN != '' }}
+        uses: snyk/actions/node@master
 
       - name: Snyk Open Source (Gradle) test
         if: ${{ env.SNYK_TOKEN != '' }}
