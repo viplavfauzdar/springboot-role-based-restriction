@@ -202,23 +202,26 @@ jobs:
 
       - name: Set up Snyk
         if: ${{ env.SNYK_TOKEN != '' }}
-        uses: snyk/actions/node@master
+        uses: snyk/actions/gradle@master
+        #with:
+        #  token: ${{ secrets.SNYK_TOKEN }}
+        #  org: ${{ vars.SNYK_ORG }}
 
       - name: Snyk Open Source (Gradle) test
         if: ${{ env.SNYK_TOKEN != '' }}
         run: |
           snyk test --all-projects --exclude=test --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-os.sarif || true
-        env:
-          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
-          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
+        #env:
+        #  JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
+        #  PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
 
       - name: Snyk Container test (image)
         if: ${{ env.SNYK_TOKEN != '' }}
         run: |
           snyk container test demo-app:latest --file=Dockerfile --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-container.sarif || true
-        env:
-          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
-          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
+        #env:
+        #  JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
+        #  PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
 
       - name: Upload Snyk SARIF (Open Source)
         if: ${{ env.SNYK_TOKEN != '' }}
