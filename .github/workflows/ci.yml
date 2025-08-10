@@ -21,6 +21,7 @@ jobs:
     permissions:
       contents: write       # create releases/tags
       pull-requests: write  # open/update release PRs
+      issues: write         # create/update labels used by Release Please
     steps:
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
