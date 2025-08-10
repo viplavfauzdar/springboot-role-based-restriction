@@ -145,14 +145,32 @@ jobs:
 
       - name: Verify Boot JAR exists
         run: |
-          echo "Listing build/libs contents:" && ls -l build/libs || true
+          set -euo pipefail
+          echo "Listing workspace after artifact download:"
+          ls -la || true
+          echo "Searching for Boot JARs..."
           mkdir -p build/libs
+          # Find candidate jars anywhere in the workspace
+          FOUND_JARS=$(find . -maxdepth 3 -type f -name "*.jar" | tr '\n' ' ')
+          echo "Found JARs: $FOUND_JARS"
+          # If none in build/libs, try to move a likely boot jar into build/libs
+          if [ ! -d build/libs ] || [ -z "$(ls -1 build/libs/*.jar 2>/dev/null)" ]; then
+            for f in $FOUND_JARS; do
+              # Prefer a bootable Spring Boot jar (contains 'SNAPSHOT' or version)
+              if [[ "$f" == *".jar" ]]; then
+                cp -v "$f" build/libs/ || true
+              fi
+            done
+          fi
+          echo "Final build/libs contents:"
+          ls -l build/libs || true
           JAR_COUNT=$(ls build/libs/*.jar 2>/dev/null | wc -l | tr -d ' ')
           if [ "$JAR_COUNT" -eq 0 ]; then
-            echo "ERROR: No Boot JAR found in build/libs. Did the build succeed upstream?" >&2
+            echo "ERROR: No Boot JAR found after artifact download. Did the upstream build upload it?" >&2
             exit 1
           fi
-          echo "Boot JARs:" && ls -1 build/libs/*.jar
+          echo "Boot JARs ready:"
+          ls -1 build/libs/*.jar
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -295,6 +313,14 @@ jobs:
           name: build-outputs
           path: .
 
+      - name: Debug downloaded build outputs
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: |
+          echo "Tree of ./build after artifact download:"
+          find build -maxdepth 3 -type d -print || true
+          ls -R build/classes || true
+          ls -l build/reports/jacoco/test || true
+
       - name: Set up JDK 21
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: actions/setup-java@v4
@@ -311,7 +337,7 @@ jobs:
             -Dsonar.organization=viplavfauzdar
             -Dsonar.sources=src/main/java
             -Dsonar.tests=src/test/java
-            -Dsonar.java.binaries=build/classes/java/main
+            -Dsonar.java.binaries=build/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
 
       - name: SonarCloud Quality Gate
