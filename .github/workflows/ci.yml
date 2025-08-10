@@ -321,6 +321,23 @@ jobs:
           ls -R build/classes || true
           ls -l build/reports/jacoco/test || true
 
+      - name: Prepare binaries for Sonar (unpack JAR)
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: |
+          set -e
+          mkdir -p sonar-classes
+          if ls build/libs/*.jar >/dev/null 2>&1; then
+            echo "Unpacking JARs to sonar-classes/"
+            for j in build/libs/*.jar; do
+              unzip -o -q "$j" -d sonar-classes
+            done
+          else
+            echo "No JARs found under build/libs. Will fall back to build/classes if present."
+          fi
+          echo "Prepared class roots:"
+          find sonar-classes -maxdepth 2 -type d -print || true
+          find build/classes -maxdepth 2 -type d -print || true
+
       - name: Set up JDK 21
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: actions/setup-java@v4
@@ -337,7 +354,7 @@ jobs:
             -Dsonar.organization=viplavfauzdar
             -Dsonar.sources=src/main/java
             -Dsonar.tests=src/test/java
-            -Dsonar.java.binaries=build/classes
+            -Dsonar.java.binaries=sonar-classes,build/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
 
       - name: SonarCloud Quality Gate
