@@ -222,75 +222,44 @@ jobs:
           java-version: 21
           distribution: temurin
 
-      - name: Install Snyk CLI
-        if: ${{ env.SNYK_TOKEN != '' }}
+      - name: Setup Snyk CLI
         uses: snyk/actions/setup@master
-
-      - name: Debug Java for Snyk
-        if: ${{ env.SNYK_TOKEN != '' }}
-        run: |
-          echo "JAVA_HOME=${JAVA_HOME}"
-          ls -la "${JAVA_HOME}" || true
-          which java || true
-          java -version
+        with:
+          snyk-version: latest
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Snyk Open Source (Gradle) test
-        id: snyk_os
-        if: ${{ env.SNYK_TOKEN != '' }}
-        env:
-          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
-          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
         run: |
-          set -euo pipefail
-          snyk test --all-projects --exclude=test --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-os.sarif || true
-          if [ -f snyk-os.sarif ]; then
-            echo "sarif_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "sarif_exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          snyk test --package-manager=gradle --all-projects --exclude=test \
+            --severity-threshold=high --org="${SNYK_ORG}" \
+            --sarif-file-output="snyk-os.sarif" || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_ORG: viplavfauzdar
 
       - name: Upload Snyk OS SARIF artifact
-        if: ${{ env.SNYK_TOKEN != '' }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-os
+          name: snyk-os-results
           path: snyk-os.sarif
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
       - name: Snyk Container test (image)
-        id: snyk_container
-        if: ${{ env.SNYK_TOKEN != '' }}
-        env:
-          JAVA_HOME: ${{ steps.jdk_for_snyk.outputs.path }}
-          PATH: ${{ steps.jdk_for_snyk.outputs.path }}/bin:${{ env.PATH }}
         run: |
-          set -euo pipefail
-          snyk container test demo-app:latest --file=Dockerfile --severity-threshold=high --org=${{ vars.SNYK_ORG }} --sarif-file-output=snyk-container.sarif || true
-          if [ -f snyk-container.sarif ]; then
-            echo "sarif_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "sarif_exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          snyk container test "demo-app:${APP_VERSION}" --file=Dockerfile \
+            --sarif-file-output="snyk-container.sarif" || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Upload Snyk Container SARIF artifact
-        if: ${{ env.SNYK_TOKEN != '' }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-container
+          name: snyk-container-results
           path: snyk-container.sarif
-          if-no-files-found: ignore
-
-      - name: Upload Snyk SARIF (Open Source)
-        if: ${{ env.SNYK_TOKEN != '' && steps.snyk_os.outputs.sarif_exists == 'true' }}
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-os.sarif
-
-      - name: Upload Snyk SARIF (Container)
-        if: ${{ env.SNYK_TOKEN != '' && steps.snyk_container.outputs.sarif_exists == 'true' }}
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-container.sarif
+          if-no-files-found: warn
 
   sonarqube-scan:
     name: SonarCloud Scan
