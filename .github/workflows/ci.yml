@@ -343,7 +343,7 @@ jobs:
           { [ -f DFD.md ] && echo "## DFD.md" && cat DFD.md; } >> ARCH.md || true
           find src/main/java -maxdepth 3 -type f -name "*.java" | sed 's#^\./##' > TREE.txt || true
 
-      - name: AI: Threat model this change (STRIDE)
+      - name: AI - Threat Review this change (STRIDE)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
