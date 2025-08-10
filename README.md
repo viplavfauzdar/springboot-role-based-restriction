@@ -2,19 +2,39 @@
 
 This is a basic REST API template built with Spring Boot, using an H2 in-memory database. It demonstrates typical structure, including layers for controller, service, repository, and entity.
 
+This project now includes integrated security scanning (Trivy, Docker Scout, Snyk, Gitleaks) and an AI-assisted STRIDE threat model review in CI/CD.
+
+### 🔒 Security Scans in CI/CD
+- **Trivy**: Scans the application JAR and Docker image for known vulnerabilities (CVEs) in OS packages and dependencies.
+- **Docker Scout**: Disabled by default because it requires a GitHub Pro/Team account. Users can enable it by granting the `GITHUB_TOKEN` `write` permissions to contents and pull-requests in the repo settings or using a PAT.
+- **Snyk**: Performs deep dependency scanning (both OS and app-level) and license compliance checks.
+- **Gitleaks**: Detects secrets and sensitive information in the codebase.
+
+### 🤖 AI-Assisted STRIDE Threat Review
+Every pull request and push triggers an automated AI-based threat modeling process using the STRIDE framework:
+- Collects code diffs, architecture documentation, and project structure.
+- Prompts an AI model to analyze potential security threats in the change set.
+- Generates a Markdown report uploaded as a build artifact (and posted to PRs) to guide secure coding practices.
+
+### ⚙️ CI/CD Notes
+- **Docker Scout** is commented out/disabled by default in the workflow because it requires a GitHub Pro/Team account or higher.
+- To enable Docker Scout, adjust the repository settings: go to Actions → General → Workflow permissions, then set to Read/Write and allow create/approve PRs, or use a Personal Access Token (PAT) with appropriate permissions.
+- **Release Please** requires the same `GITHUB_TOKEN` permissions to open PRs. Without these permissions, it will fail with the error "GitHub Actions is not permitted to create or approve pull requests".
+- Snyk, Trivy, and Gitleaks artifacts are uploaded in the Actions run summary for download after each workflow run.
+
 ## Technologies Used
 
-- Java 17+
+- Java 21+
 - Spring Boot
 - Spring Data JPA
 - H2 Database
-- Maven
+- Gradle
 - Lombok (optional)
 
 ## Getting Started
 
 ```bash
-./mvnw spring-boot:run
+./gradlew bootRun
 ```
 
 Then navigate to `http://localhost:8080/api/employees`.
@@ -103,6 +123,7 @@ Visit [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.h
 
 ## 🔖 Releases (Conventional Commits → Auto Tags)
 We use Conventional Commits and GitHub's **Release Please** to automate versioning and releases.
+This project now includes integrated security scanning (Trivy, Docker Scout, Snyk, Gitleaks) and an AI-assisted STRIDE threat model review in CI/CD.
 
 ### How it works
 - Push/merge commits to `main` using Conventional Commit prefixes (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, etc.).
