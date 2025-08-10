@@ -231,7 +231,7 @@ jobs:
 
       - name: Snyk Open Source (Gradle) test
         run: |
-          snyk test --package-manager=gradle --all-projects --exclude=test \
+          snyk test --package-manager=gradle --exclude=test \
             --severity-threshold=high --org="${SNYK_ORG}" \
             --sarif-file-output="snyk-os.sarif" || true
         env:
