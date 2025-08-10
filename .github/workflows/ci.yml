@@ -437,8 +437,8 @@ jobs:
             cat TREE.txt || true
             echo "--- END TREE ---"
           } > prompt.txt
-          PAYLOAD=$(jq -Rn --slurpfile p prompt.txt \
-            '{model:"gpt-4o-mini", input:[{"role":"system","content":"You are a pragmatic AppSec architect. Be precise and prioritize risk."},{"role":"user","content":($p[0])}] }')
+          PAYLOAD=$(jq -Rn --rawfile p prompt.txt \
+            '{model:"gpt-4o-mini", input:[{"role":"system","content":"You are a pragmatic AppSec architect. Be precise and prioritize risk."},{"role":"user","content":$p}] }')
           curl -s https://api.openai.com/v1/responses \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             -H "Content-Type: application/json" \
