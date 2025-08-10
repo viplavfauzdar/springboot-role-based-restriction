@@ -345,6 +345,24 @@ jobs:
           java-version: 21
           distribution: temurin
 
+      - name: Ensure compiled classes for Sonar
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: |
+          set -e
+          NEED_BUILD=0
+          if [ ! -d build/classes/java/main ]; then
+            NEED_BUILD=1
+          elif ! find build/classes/java/main -name "*.class" -type f -print -quit | grep -q .; then
+            NEED_BUILD=1
+          fi
+          if [ "$NEED_BUILD" -eq 1 ]; then
+            echo "No compiled classes found in artifacts; compiling sources for Sonar..."
+            chmod +x ./gradlew || true
+            ./gradlew -x test classes jacocoTestReport
+          else
+            echo "Compiled classes found; skipping compile."
+          fi
+
       - name: SonarCloud Scan
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v4
