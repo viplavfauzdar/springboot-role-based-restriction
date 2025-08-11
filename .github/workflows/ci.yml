@@ -401,17 +401,19 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Ollama is reachable
+      - name: Verify Ollama + model
         shell: bash
         env:
           OLLAMA_HOST: http://localhost:11434
+          OLLAMA_MODEL: gpt-oss-20b
         run: |
-          set -e
+          set -euo pipefail
           echo "Checking Ollama at $OLLAMA_HOST ..."
-          curl -sS "$OLLAMA_HOST/api/tags" | jq . >/dev/null || {
-            echo "Ollama API is not reachable at $OLLAMA_HOST. Is the daemon running on the runner?" >&2
-            exit 1
-          }
+          curl -fsS "$OLLAMA_HOST/api/tags" | jq . >/dev/null
+          echo "Ensuring model '$OLLAMA_MODEL' is available..."
+          curl -fsS "$OLLAMA_HOST/api/tags" \
+            | jq -e --arg m "$OLLAMA_MODEL" '.models[] | select(.name==$m)' >/dev/null \
+            || { echo "Model '$OLLAMA_MODEL' is not present. Run:  ollama pull $OLLAMA_MODEL" >&2; exit 1; }
 
       - name: AI - Threat Review this change (STRIDE) via Ollama
         shell: bash
@@ -423,29 +425,43 @@ jobs:
           {
             echo "You are a senior application security architect. Using STRIDE, assess threats introduced by this PR. Return a Markdown report with: Summary, Assets/Trust Boundaries touched, STRIDE table (Threat, Finding, Severity, Evidence), Mitigations, Blockers. Keep it concise and actionable.";
             echo;
-            echo "--- BEGIN PR DIFF ---";
-            cat pr.diff || true;
-            echo "--- END PR DIFF ---";
+            echo "--- BEGIN PR DIFF ---"; cat pr.diff || true; echo "--- END PR DIFF ---";
             echo;
-            echo "--- BEGIN ARCH NOTES ---";
-            cat ARCH.md || true;
-            echo "--- END ARCH NOTES ---";
+            echo "--- BEGIN ARCH NOTES ---"; cat ARCH.md || true; echo "--- END ARCH NOTES ---";
             echo;
-            echo "--- BEGIN TREE (src/main/java) ---";
-            cat TREE.txt || true;
-            echo "--- END TREE ---";
+            echo "--- BEGIN TREE (src/main/java) ---"; cat TREE.txt || true; echo "--- END TREE ---";
           } > prompt.txt
 
-          # Build payload for Ollama /api/generate
+          # Build payload and call Ollama (fail on HTTP errors)
           PAYLOAD=$(jq -Rn --rawfile p prompt.txt '{model: env.OLLAMA_MODEL, prompt: $p, stream: false}')
-
-          # Call Ollama and capture output
-          curl -sS "$OLLAMA_HOST/api/generate" \
+          curl -fsS "$OLLAMA_HOST/api/generate" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" > ai_final.json
 
-          # Extract the text response into THREAT_REPORT.md
-          jq -r '.response // empty' ai_final.json > THREAT_REPORT.md || echo "No output" > THREAT_REPORT.md
+          # If Ollama returned an error, show it and fail
+          if jq -e '.error' ai_final.json >/dev/null; then
+            echo "Ollama error:" >&2
+            jq -r '.error' ai_final.json >&2
+            exit 1
+          fi
+
+          # Extract response
+          jq -r '.response // empty' ai_final.json > THREAT_REPORT.md
+
+          # Hard‑fail if we somehow got nothing back
+          if [ ! -s THREAT_REPORT.md ]; then
+            echo "Empty threat report. Full API response follows:" >&2
+            cat ai_final.json >&2
+            exit 1
+          fi
+
+      - name: Upload raw Ollama response (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-final-json
+          path: ai_final.json
+          if-no-files-found: warn
 
       - name: Upload AI Threat Review Bundle
         if: always()
