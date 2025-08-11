@@ -355,7 +355,7 @@ jobs:
   # --- AI Threat Review job ---
   ai-threat-review:
     name: AI Threat Review (STRIDE)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     permissions:
       contents: read
@@ -386,66 +386,34 @@ jobs:
           { [ -f DFD.md ] && echo "## DFD.md" && cat DFD.md; } >> ARCH.md || true
           find src/main/java -maxdepth 3 -type f -name "*.java" | sed 's#^\./##' > TREE.txt || true
 
-      - name: Ensure required CLI tools
-        shell: bash
-        run: |
-          set -e
-          for bin in curl jq; do
-            if ! command -v "$bin" >/dev/null 2>&1; then
-              echo "Missing required tool: $bin" >&2
-              MISSING=1
-            fi
-          done
-          if [ "${MISSING:-0}" = "1" ]; then
-            echo "Please install missing tools on the self-hosted runner (curl, jq)." >&2
-            exit 1
-          fi
-
-      - name: Verify Ollama is reachable
-        shell: bash
+      - name: AI - Threat Review this change (STRIDE)
         env:
-          OLLAMA_HOST: http://localhost:11434
-        run: |
-          set -e
-          echo "Checking Ollama at $OLLAMA_HOST ..."
-          curl -sS "$OLLAMA_HOST/api/tags" | jq . >/dev/null || {
-            echo "Ollama API is not reachable at $OLLAMA_HOST. Is the daemon running on the runner?" >&2
-            exit 1
-          }
-
-      - name: AI - Threat Review this change (STRIDE) via Ollama
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
-        env:
-          OLLAMA_HOST: http://localhost:11434
-          OLLAMA_MODEL: gpt-oss-20b
         run: |
           set -euo pipefail
           {
-            echo "You are a senior application security architect. Using STRIDE, assess threats introduced by this PR. Return a Markdown report with: Summary, Assets/Trust Boundaries touched, STRIDE table (Threat, Finding, Severity, Evidence), Mitigations, Blockers. Keep it concise and actionable.";
-            echo;
-            echo "--- BEGIN PR DIFF ---";
-            cat pr.diff || true;
-            echo "--- END PR DIFF ---";
-            echo;
-            echo "--- BEGIN ARCH NOTES ---";
-            cat ARCH.md || true;
-            echo "--- END ARCH NOTES ---";
-            echo;
-            echo "--- BEGIN TREE (src/main/java) ---";
-            cat TREE.txt || true;
-            echo "--- END TREE ---";
+            echo "You are a senior application security architect. Using STRIDE, assess threats introduced by this PR. Return a Markdown report with: Summary, Assets/Trust Boundaries touched, STRIDE table (Threat, Finding, Severity, Evidence), Mitigations, Blockers. Keep it concise and actionable."
+            echo
+            echo "--- BEGIN PR DIFF ---"
+            cat pr.diff || true
+            echo "--- END PR DIFF ---"
+            echo
+            echo "--- BEGIN ARCH NOTES ---"
+            cat ARCH.md || true
+            echo "--- END ARCH NOTES ---"
+            echo
+            echo "--- BEGIN TREE (src/main/java) ---"
+            cat TREE.txt || true
+            echo "--- END TREE ---"
           } > prompt.txt
-
-          # Build payload for Ollama /api/generate
-          PAYLOAD=$(jq -Rn --rawfile p prompt.txt '{model: env.OLLAMA_MODEL, prompt: $p, stream: false}')
-
-          # Call Ollama and capture output
-          curl -sS "$OLLAMA_HOST/api/generate" \
+          PAYLOAD=$(jq -Rn --rawfile p prompt.txt \
+            '{model:"gpt-4o-mini", input:[{"role":"system","content":"You are a pragmatic AppSec architect. Be precise and prioritize risk."},{"role":"user","content":$p}] }')
+          curl -s https://api.openai.com/v1/responses \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" > ai_final.json
-
-          # Extract the text response into THREAT_REPORT.md
-          jq -r '.response // empty' ai_final.json > THREAT_REPORT.md || echo "No output" > THREAT_REPORT.md
+          jq -r '..|.text? // empty' ai_final.json > THREAT_REPORT.md || echo "No output" > THREAT_REPORT.md
 
       - name: Upload AI Threat Review Bundle
         if: always()
