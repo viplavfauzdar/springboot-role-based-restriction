@@ -415,6 +415,19 @@ jobs:
             -d "$PAYLOAD" > ai_final.json
           jq -r '..|.text? // empty' ai_final.json > THREAT_REPORT.md || echo "No output" > THREAT_REPORT.md
 
+      - name: Upload AI Threat Review Bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-threat-bundle
+          if-no-files-found: warn
+          path: |
+            THREAT_REPORT.md
+            prompt.txt
+            pr.diff
+            ARCH.md
+            TREE.txt
+
       - name: Upload AI Threat Report artifact (push)
         if: ${{ github.event_name == 'push' }}
         uses: actions/upload-artifact@v4
