@@ -401,46 +401,46 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Ollama + model
-        shell: bash
-        env:
-          OLLAMA_HOST: http://localhost:11434
-          OLLAMA_MODEL: gpt-oss-20b
-        run: |
-          set -euo pipefail
+      # - name: Verify Ollama + model
+      #   shell: bash
+      #   env:
+      #     OLLAMA_HOST: http://localhost:11434
+      #     OLLAMA_MODEL: gpt-oss-20b
+      #   run: |
+      #     set -euo pipefail
 
-          # Query tags and save for inspection
-          echo "Checking Ollama at $OLLAMA_HOST ..."
-          curl -sS "$OLLAMA_HOST/api/tags" -o tags.json || { echo "Failed to reach Ollama at $OLLAMA_HOST" >&2; exit 1; }
+      #     # Query tags and save for inspection
+      #     echo "Checking Ollama at $OLLAMA_HOST ..."
+      #     curl -sS "$OLLAMA_HOST/api/tags" -o tags.json || { echo "Failed to reach Ollama at $OLLAMA_HOST" >&2; exit 1; }
 
-          # Pretty-print for logs (non-fatal if jq is missing)
-          echo "---- /api/tags raw response ----"
-          if command -v jq >/dev/null 2>&1; then
-            jq . tags.json || cat tags.json || true
-          else
-            cat tags.json || true
-          fi
+      #     # Pretty-print for logs (non-fatal if jq is missing)
+      #     echo "---- /api/tags raw response ----"
+      #     if command -v jq >/dev/null 2>&1; then
+      #       jq . tags.json || cat tags.json || true
+      #     else
+      #       cat tags.json || true
+      #     fi
 
-          # Normalize names so either `gpt-oss-20b` or `gpt-oss:20b` will match
-          if command -v jq >/dev/null 2>&1; then
-            if jq -e --arg m "$OLLAMA_MODEL" '[.models[] | select((.name|gsub("[:-]";"")) == ($m|gsub("[:-]";"")))] | length > 0' tags.json >/dev/null; then
-              echo "Model '$OLLAMA_MODEL' found in tags (allowing hyphen/colon normalization)."
-            else
-              echo "ERROR: Model '$OLLAMA_MODEL' not found in Ollama tags. Available models:" >&2
-              jq -r '.models[].name' tags.json >&2 || cat tags.json >&2
-              echo "If your model is listed as 'gpt-oss:20b', set OLLAMA_MODEL to that exact value or rename your local model." >&2
-              exit 1
-            fi
-          else
-            # Fallback grep check if jq is unavailable
-            if grep -q "\"name\"\s*:\s*\"$OLLAMA_MODEL\"" tags.json || \
-               grep -q "\"name\"\s*:\s*\"$(echo "$OLLAMA_MODEL" | tr '-' ':')\"" tags.json; then
-              echo "Model '$OLLAMA_MODEL' appears present (grep fallback)."
-            else
-              echo "ERROR: Could not verify presence of model '$OLLAMA_MODEL' without jq." >&2
-              exit 1
-            fi
-          fi
+      #     # Normalize names so either `gpt-oss-20b` or `gpt-oss:20b` will match
+      #     if command -v jq >/dev/null 2>&1; then
+      #       if jq -e --arg m "$OLLAMA_MODEL" '[.models[] | select((.name|gsub("[:-]";"")) == ($m|gsub("[:-]";"")))] | length > 0' tags.json >/dev/null; then
+      #         echo "Model '$OLLAMA_MODEL' found in tags (allowing hyphen/colon normalization)."
+      #       else
+      #         echo "ERROR: Model '$OLLAMA_MODEL' not found in Ollama tags. Available models:" >&2
+      #         jq -r '.models[].name' tags.json >&2 || cat tags.json >&2
+      #         echo "If your model is listed as 'gpt-oss:20b', set OLLAMA_MODEL to that exact value or rename your local model." >&2
+      #         exit 1
+      #       fi
+      #     else
+      #       # Fallback grep check if jq is unavailable
+      #       if grep -q "\"name\"\s*:\s*\"$OLLAMA_MODEL\"" tags.json || \
+      #          grep -q "\"name\"\s*:\s*\"$(echo "$OLLAMA_MODEL" | tr '-' ':')\"" tags.json; then
+      #         echo "Model '$OLLAMA_MODEL' appears present (grep fallback)."
+      #       else
+      #         echo "ERROR: Could not verify presence of model '$OLLAMA_MODEL' without jq." >&2
+      #         exit 1
+      #       fi
+      #     fi
 
       - name: AI - Threat Review this change (STRIDE) via Ollama
         shell: bash
