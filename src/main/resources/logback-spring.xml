@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+  <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="springboot-rbac"/>
+
+  <!-- Console JSON (nice locally) -->
+  <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <timestamp/>
+        <pattern>
+          <pattern>
+            {
+              "level": "%level",
+              "logger_name": "%logger",
+              "thread": "%thread",
+              "message": "%message",
+              "app": "${APP_NAME}",
+              "trace_id": "%X{trace_id:-}",
+              "span_id": "%X{span_id:-}"
+            }
+          </pattern>
+        </pattern>
+        <stackTrace/>
+      </providers>
+    </encoder>
+  </appender>
+
+  <!-- TCP appender to Logstash -->
+  <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+    <!-- On macOS/Windows Docker, use host.docker.internal; on Linux use localhost -->
+    <destination>localhost:5001</destination>
+    <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <timestamp/>
+        <pattern>
+          <pattern>
+            {
+              "level":"%level",
+              "logger_name":"%logger",
+              "thread":"%thread",
+              "message":"%message",
+              "app":"${APP_NAME}",
+              "trace_id":"%X{trace_id:-}",
+              "span_id":"%X{span_id:-}"
+            }
+          </pattern>
+        </pattern>
+        <stackTrace/>
+      </providers>
+    </encoder>
+    <keepAliveDuration>5 minutes</keepAliveDuration>
+    <reconnectionDelay>3 seconds</reconnectionDelay>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE_JSON"/>
+    <appender-ref ref="LOGSTASH"/>
+  </root>
+</configuration>
