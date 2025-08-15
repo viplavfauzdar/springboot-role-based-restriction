@@ -16,6 +16,25 @@ Every pull request and push triggers an automated AI-based threat modeling proce
 - Prompts an AI model to analyze potential security threats in the change set.
 - Generates a Markdown report uploaded as a build artifact (and posted to PRs) to guide secure coding practices.
 
+### 📊 ELK Stack Integration for Log Management
+This project now includes local development support for the ELK stack — Elasticsearch, Logstash, and Kibana — to enable log aggregation and visualization.
+
+- **Starting ELK**: Run the ELK stack locally using the provided Docker Compose file:
+  ```bash
+  docker-compose -f docker-compose.elk.yml up
+  ```
+- **Logstash Configuration** (`logstash.conf`):
+  - Listens on TCP port `5001` for JSON lines formatted logs from Logback.
+  - Includes an optional mutate filter to rename the `logger_name` field to `logger`.
+  - Outputs logs to Elasticsearch with an index pattern `springboot-logs-YYYY.MM.dd`.
+  - Also outputs logs to stdout for debugging purposes.
+- **Kibana Usage**:
+  - Access Kibana UI at [http://localhost:5601](http://localhost:5601).
+  - Create a Data View for the index pattern `springboot-logs-*` and set `@timestamp` as the time filter field.
+  - Use Kibana to build dashboards and visualize logs effectively.
+- **Development Mode**:
+  - When running the Spring Boot application in development mode, logs are automatically sent to Logstash, enabling real-time log aggregation and analysis.
+
 ### ⚙️ CI/CD Notes
 - **Docker Scout** is commented out/disabled by default in the workflow because it requires a GitHub Pro/Team account or higher.
 - To enable Docker Scout, adjust the repository settings: go to Actions → General → Workflow permissions, then set to Read/Write and allow create/approve PRs, or use a Personal Access Token (PAT) with appropriate permissions.

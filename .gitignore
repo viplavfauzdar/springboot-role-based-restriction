@@ -57,3 +57,11 @@ dist/
 out/
 bin/
 tmp/
+
+# Python (agent)
+agent/.venv/
+agent/venv/
+agent/**/__pycache__/
+agent/**/*.pyc
+agent/**/*.pyo
+agent/**/*.pyd
