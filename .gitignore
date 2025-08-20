@@ -65,3 +65,17 @@ agent/**/__pycache__/
 agent/**/*.pyc
 agent/**/*.pyo
 agent/**/*.pyd
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.lock.hcl
+terraform.tfvars
+.terraform.lock.hcl
+.terraform.shared.lock.hcl
+
+terraform/.terraform.lock.hcl
+terraform/.terraform.lock.hcl.backup
+terraform/.terraform.shared.lock.hcl
+terraform/.terraform
