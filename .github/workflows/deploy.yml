@@ -1,0 +1,109 @@
+name: Build & Deploy (GHCR -> EC2)
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Normalize image repo (lowercase for GHCR)
+        run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Docker meta (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ env.APP_VERSION }}
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Set app version
+        run: echo "APP_VERSION=0.1.0-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # If EC2 is ARM (t4g.*), include linux/arm64; for t3.*, use linux/amd64
+      - name: Build & Push (ARM64 for t4g.*)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH & deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}  # your private key (PEM)
+          script: |
+            set -euo pipefail
+            REPO_LC=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE="${REPO_LC}:latest"
+            # IMAGE="ghcr.io/${{ github.repository }}:latest"
+
+            # If your package is public, login is not strictly necessary.
+            # Uncomment the next two lines only if you later make the package private:
+            # echo "${{ secrets.GHCR_PAT || '' }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin || true
+
+            ARCH=$(uname -m)
+            echo "EC2 arch: ${ARCH}"
+            sudo docker --version || (echo "Docker not installed" && exit 1)
+
+            # Pull the correct architecture image (EC2 t4g.* is arm64)
+            sudo docker pull --quiet --platform linux/arm64 --pull always "${IMAGE}"
+
+            # Stop and remove previous container if it exists
+            sudo docker rm -f app || true
+
+            # Run the container, map port 80->8080, restart on reboot/failure
+            sudo docker run -d --name app --restart=always \
+              -p 80:8080 \
+              --platform linux/arm64 \
+              -e JAVA_OPTS="-Xms256m -Xmx512m" \
+              "${IMAGE}"
+
+            echo "Deployed image:"
+            sudo docker image inspect "${IMAGE}" --format='{{index .RepoDigests 0}}' || true
+
+            # Optional: basic health check (adjust path if your app exposes health)
+            sleep 3
+            if command -v curl >/dev/null 2>&1; then
+              curl -fsS http://127.0.0.1/actuator/health || true
+            fi
+
+            # Prune dangling images to save disk
+            sudo docker image prune -f

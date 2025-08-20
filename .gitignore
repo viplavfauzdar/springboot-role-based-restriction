@@ -79,3 +79,11 @@ terraform/.terraform.lock.hcl
 terraform/.terraform.lock.hcl.backup
 terraform/.terraform.shared.lock.hcl
 terraform/.terraform
+
+# Infra Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
+infra/terraform/*.override*
+infra/terraform*.tfvars

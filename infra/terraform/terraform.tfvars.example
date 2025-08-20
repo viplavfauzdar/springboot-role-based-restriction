@@ -1,0 +1,6 @@
+aws_region     = "us-east-1"
+instance_type  = "t4g.nano"  # or "t3.micro"
+key_name       = "springboot-minimal-key"
+ssh_public_key = "ssh-ed25519 AAAA... your_pub_key ..."
+allowed_cidr   = "0.0.0.0/0"
+docker_image   = "ghcr.io/viplavfauzdar/springboot-role-based-restriction:latest"
