@@ -1,0 +1,88 @@
+# GitHub → AWS (OIDC) IAM role (one‑time in AWS)
+# Create an IAM role with trust policy for your repo’s OIDC, and attach a least‑priv policy (EC2, VPC, IAM pass‑role if needed). 
+# Then in the workflow use aws-actions/configure-aws-credentials.
+# name: Terraform (EC2 infra)
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/terraform/**'
+
+env:
+  TF_WORKING_DIR: infra/terraform
+
+permissions:
+  id-token: write   # for OIDC
+  contents: read
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-oidc-terraform
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform fmt
+        run: terraform fmt -check
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan.bin -input=false
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan.bin
+
+  apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production   # add an Environment in repo settings with required reviewers
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-oidc-terraform
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      # Option A: re-plan on main and apply
+      - name: Terraform plan (main)
+        run: terraform plan -out=tfplan.bin -input=false
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve tfplan.bin

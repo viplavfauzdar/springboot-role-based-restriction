@@ -184,4 +184,170 @@ VER=1.2.3
 git tag -a "v${VER}" -m "Release v${VER}"
 git push origin "v${VER}"
 ```
-This also triggers CI with the exact `1.2.3` baked into the build.
+
+
+## ☁️ AWS Deployment with Terraform + GitHub Actions
+
+This project supports cloud deployment to AWS EC2 using a combination of Terraform for infrastructure provisioning and GitHub Actions for automated application deployment. Two main approaches are supported:
+
+### 1. **Current Deployment (Manual + GHA Hybrid)**
+- **Infrastructure**: Terraform scripts are used to provision an EC2 instance (e.g., `t4g.small` ARM64 for cost efficiency), security groups, and networking. The user runs `terraform apply` manually to create/update infrastructure.
+- **Application Deployment**: The GitHub Actions workflow (`.github/workflows/deploy.yml`) builds the Docker image, pushes it to GitHub Container Registry (GHCR), and then SSHes into the EC2 instance to pull the latest image and restart the container.
+- **Manual Steps**: Some manual intervention is required—primarily running `terraform apply` and updating secrets/SSH keys as needed.
+
+### 2. **One-Click Automated Deployment**
+- **Fully Automated**: By configuring Terraform to use a remote backend (S3 for state, DynamoDB for locking), both infrastructure and application deployment can be triggered from GitHub Actions with no manual steps.
+- **Per-Environment Deployments**: Use environment variables or GitHub Environments (e.g., `dev`, `staging`, `prod`) to drive which environment is deployed. You can organize Terraform code using workspaces or separate folders (`infra/dev`, `infra/staging`, etc.), each with isolated state in S3.
+- **Workflow**: On push or PR merge to a specific branch or environment, the workflow:
+  - Runs `terraform init`, `terraform plan`, and `terraform apply` to provision/update infrastructure.
+  - Builds and pushes the Docker image to GHCR.
+  - SSHes into the EC2 instance, pulls the new image, and restarts the container.
+
+#### Example GitHub Actions Workflow Snippet
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}  # e.g., dev, staging, prod
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Terraform
+      - uses: hashicorp/setup-terraform@v2
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=my-tf-state-${{ github.ref_name }}"
+        working-directory: infra/${{ github.ref_name }}
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: infra/${{ github.ref_name }}
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: infra/${{ github.ref_name }}
+
+      # Build & Push Docker Image to GHCR
+      - name: Build Docker image
+        run: docker build -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+      - name: Login to GHCR
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Push Docker image
+        run: docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      # SSH & Deploy on EC2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/${{ github.repository }}:${{ github.sha }}
+            docker stop springboot-app || true
+            docker rm springboot-app || true
+            docker run -d --name springboot-app -p 80:8080 ghcr.io/${{ github.repository }}:${{ github.sha }}
+```
+
+### 💸 Cost Optimization
+- The Terraform scripts default to using ARM64-based EC2 instances (such as `t4g.small`) for significant cost savings while maintaining good performance. Be sure your Docker image is multi-arch or ARM64 compatible.
+
+### 🔀 Multi-Environment Strategy
+- **Workspaces**: Use Terraform workspaces (`terraform workspace select dev`) to isolate state per environment.
+- **Per-Folder Structure**: Alternatively, maintain separate folders (e.g., `infra/dev`, `infra/staging`, `infra/prod`) with their own backend config.
+- **State Storage**: Store Terraform state in S3 and use DynamoDB for state locking to avoid conflicts during concurrent deployments.
+
+
+### 🌍 Environment Management Patterns
+
+#### 1. **Directory-per-Environment Terraform**
+Organize your Terraform code by creating a separate directory for each environment (e.g., `infra/dev`, `infra/staging`, `infra/prod`). Each folder contains its own Terraform files and state, making it easy to manage and isolate changes.
+
+Example structure:
+```text
+infra/
+├── dev/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── backend.tf
+├── staging/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── backend.tf
+└── prod/
+    ├── main.tf
+    ├── variables.tf
+    └── backend.tf
+```
+
+#### 2. **Workspace-per-Environment Terraform**
+Alternatively, use [Terraform workspaces](https://developer.hashicorp.com/terraform/language/state/workspaces) to isolate state for each environment within the same codebase. This is useful when the infrastructure is similar across environments.
+
+Example commands:
+```sh
+# List all workspaces
+terraform workspace list
+# Create/select a workspace
+terraform workspace new dev
+terraform workspace select staging
+# Apply changes to the selected workspace
+terraform apply
+```
+
+#### 3. **Remote State Backend (S3 + DynamoDB)**
+Store Terraform state in an S3 bucket and use DynamoDB for state locking to prevent concurrent modifications. This is critical for team workflows and GitHub Actions automation.
+
+Example `backend.tf` snippet:
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "my-tf-state-dev"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "my-tf-locks"
+    encrypt        = true
+  }
+}
+```
+
+#### 4. **GitHub Environments Integration**
+Map GitHub Environments (e.g., dev, staging, prod) to your Terraform directories or workspaces. This enables environment-specific approvals and secrets in GitHub Actions.
+
+Example GitHub Actions workflow snippet:
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}  # Maps to dev, staging, prod
+    steps:
+      # ...
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=my-tf-state-${{ github.ref_name }}"
+        working-directory: infra/${{ github.ref_name }}
+      # ...
+```
+
+#### 5. **Secrets Management**
+Use GitHub Secrets to securely inject sensitive values (like EC2_HOST, EC2_SSH_KEY, AWS credentials) into your workflows. Reference them in your workflow as environment variables or inputs.
+
+Example usage in GitHub Actions:
+```yaml
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+```
+
+#### 6. **Minimal Variables per Environment**
+Define environment-specific variables in separate tfvars files (e.g., `dev.tfvars`, `staging.tfvars`). Pass the appropriate file when running Terraform.
+
+Example `dev.tfvars`:
+```hcl
+instance_type = "t4g.small"
+env_name      = "dev"
+```
+
+Apply with:
+```sh
+terraform apply -var-file=dev.tfvars
+```
