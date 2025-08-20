@@ -20,6 +20,9 @@ jobs:
       - name: Normalize image repo (lowercase for GHCR)
         run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
+      - name: Set app version
+        run: echo "APP_VERSION=0.1.0-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
       - name: Docker meta (tags & labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -32,9 +35,6 @@ jobs:
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-
-      - name: Set app version
-        run: echo "APP_VERSION=0.1.0-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -83,14 +83,14 @@ jobs:
             echo "EC2 arch: ${ARCH}"
             sudo docker --version || (echo "Docker not installed" && exit 1)
 
-            # Pull the correct architecture image (EC2 t4g.* is arm64)
-            sudo docker pull --quiet --platform linux/arm64 --pull always "${IMAGE}"
+            echo "Pulling image ${IMAGE} (platform linux/arm64)..."
+            sudo docker pull --platform linux/arm64 "${IMAGE}" || true
 
             # Stop and remove previous container if it exists
             sudo docker rm -f app || true
 
             # Run the container, map port 80->8080, restart on reboot/failure
-            sudo docker run -d --name app --restart=always \
+            sudo docker run -d --name app --restart=always --pull=always \
               -p 80:8080 \
               --platform linux/arm64 \
               -e JAVA_OPTS="-Xms256m -Xmx512m" \
