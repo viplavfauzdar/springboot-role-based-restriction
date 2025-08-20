@@ -35,6 +35,23 @@ This project now includes local development support for the ELK stack — Elasti
 - **Development Mode**:
   - When running the Spring Boot application in development mode, logs are automatically sent to Logstash, enabling real-time log aggregation and analysis.
 
+### 🧠 Streamlit UI for Natural Language Log Queries
+This project now includes an AI-powered Streamlit UI that allows you to query Elasticsearch logs using natural language. The interface supports switching between Elasticsearch SQL (ESQL) and Domain Specific Language (DSL) queries, displays the generated query, and shows the results in a user-friendly table format.
+
+**Running the Streamlit Log Query UI:**
+
+1. Start the backend API server using Uvicorn:
+   ```bash
+   uvicorn log_query_backend:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+2. In a separate terminal, launch the Streamlit frontend:
+   ```bash
+   streamlit run log_query_ui.py
+   ```
+
+The UI enables easy exploration of logs with natural language inputs and helps visualize the underlying queries and results for effective log analysis.
+
 ### ⚙️ CI/CD Notes
 - **Docker Scout** is commented out/disabled by default in the workflow because it requires a GitHub Pro/Team account or higher.
 - To enable Docker Scout, adjust the repository settings: go to Actions → General → Workflow permissions, then set to Read/Write and allow create/approve PRs, or use a Personal Access Token (PAT) with appropriate permissions.
@@ -69,7 +86,7 @@ Then navigate to `http://localhost:8080/api/employees`.
 src
 └── main
     └── java
-        └── com.example.demo
+        └── com.viplav.demo
             ├── controller
             ├── entity
             ├── service
