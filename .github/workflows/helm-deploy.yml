@@ -1,9 +1,10 @@
 name: Helm Deploy to Local K8s
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI / Security Pipeline"]
+    types:
+      - completed
 
 jobs:
   helm-deploy:
